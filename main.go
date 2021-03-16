@@ -1,17 +1,31 @@
 package main
 
 import (
+	"Stockbit/delivery"
+	"Stockbit/repositories"
 	"Stockbit/services"
 	"fmt"
 	mux2 "github.com/gorilla/mux"
+	"log"
 	"net/http"
 )
 
 func main() {
-	mux := mux2.NewRouter()
 
-	mux.HandleFunc("/allMovies", services.AllMovies).Methods("GET")
-	mux.HandleFunc("/movie", services.DetailMovie).Methods("GET")
+	db, err := repositories.Connect()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	redis := repositories.ConnectRedis(10)
+
+	mux := mux2.NewRouter()
+	repoMovie := repositories.NewAllMovies(redis)
+	repoLogDB := repositories.NewLogRepo(db)
+	serviceMovie := services.NewMovieService(repoMovie, repoLogDB)
+	delivery.NewMoviesHandler(serviceMovie, mux)
 
 	var handler http.Handler = mux
 
