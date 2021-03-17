@@ -18,6 +18,7 @@ type AllMoviesRepository interface {
 
 type moviesRepository struct {
 	rediss *redis.Pool
+	films *models.Result
 }
 
 func NewAllMovies (redis *redis.Pool) *moviesRepository {
@@ -27,7 +28,6 @@ func NewAllMovies (redis *redis.Pool) *moviesRepository {
 func (movies moviesRepository) GetMovies(r *http.Request) (*models.Result, error, string) {
 	var err error
 	var client = &http.Client{}
-	var films models.Result
 
 	request, err := http.NewRequest("GET", url, nil)
 
@@ -51,11 +51,11 @@ func (movies moviesRepository) GetMovies(r *http.Request) (*models.Result, error
 	//check if req already cached
 	cached, err := redis.Values(conn.Do("GET", strings.ToLower(title) + "-" + page))
 	if err == nil {
-		err = redis.ScanStruct(cached, &films)
+		err = redis.ScanStruct(cached, &movies.films)
 		if err != nil {
 			log.Fatal(err)
 		}
-		return &films, nil, request.URL.String()
+		return movies.films, nil, request.URL.String()
 	}
 
 	//do request if didn't
@@ -70,7 +70,7 @@ func (movies moviesRepository) GetMovies(r *http.Request) (*models.Result, error
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = json.Unmarshal(bodyBytes, &films)
+		err = json.Unmarshal(bodyBytes, &movies.films)
 		if err != nil {
 			return nil, err, ""
 		}
@@ -81,7 +81,7 @@ func (movies moviesRepository) GetMovies(r *http.Request) (*models.Result, error
 			log.Fatal(err)
 		}
 	}
-	return &films, nil, request.URL.String()
+	return movies.films, nil, request.URL.String()
 }
 
 
